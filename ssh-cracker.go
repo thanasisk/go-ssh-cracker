@@ -77,11 +77,9 @@ func checkKey(block *pem.Block, password []byte) (string, error) {
 	if err == nil {
 		// we now have a candidate, is it random noise or is can be parsed?
 		validKey := false
-		candidate, err := x509.ParsePKCS1PrivateKey(key)
+		_, err := x509.ParsePKCS1PrivateKey(key)
 		if err == nil {
 			validKey = true
-			lol := x509.MarshalPKCS1PrivateKey(candidate)
-			fmt.Println(string(lol))
 		}
 		if validKey == true {
 			return string(password), err
