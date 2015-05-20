@@ -25,13 +25,6 @@ type Result struct {
 }
 
 func (job Job) Do(block *pem.Block) {
-	// TODO: this is still the wrong location
-	// first of all, is there even a password?
-	if !x509.IsEncryptedPEMBlock(block) {
-		fmt.Println("No pass detected - yay")
-		os.Exit(0)
-		//return "No password protection", nil
-	}
 	// casts []byte <-> string are cheap
 	_, err := checkKey(block, []byte(job.password))
 	if err == nil {
