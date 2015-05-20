@@ -11,10 +11,9 @@ import "crypto/x509"
 import "encoding/pem"
 import "runtime"
 import "strings"
-import "errors"
+import "os"
 
 var workers = runtime.NumCPU()
-var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
 
 type Job struct {
 	password string
@@ -26,6 +25,13 @@ type Result struct {
 }
 
 func (job Job) Do(block *pem.Block) {
+	// TODO: this is still the wrong location
+	// first of all, is there even a password?
+	if !x509.IsEncryptedPEMBlock(block) {
+		fmt.Println("No pass detected - yay")
+		os.Exit(0)
+		//return "No password protection", nil
+	}
 	// casts []byte <-> string are cheap
 	_, err := checkKey(block, []byte(job.password))
 	if err == nil {
@@ -46,6 +52,7 @@ func fatal(e error) {
 func processResults(results <-chan Result) {
 	for result := range results {
 		fmt.Println("Decrypted: %s", result.decrypted)
+		//os.Exit(0)
 	}
 }
 
@@ -75,14 +82,13 @@ func checkKey(block *pem.Block, password []byte) (string, error) {
 	// golang's fix? expand the documentation ...
 	key, err := x509.DecryptPEMBlock(block, password)
 	if err == nil {
+		// we now have a candidate, is it random noise or is can be parsed?
 		validKey := false
-		_, err = x509.ParsePKCS8PrivateKey(key)
+		candidate, err := x509.ParsePKCS1PrivateKey(key)
 		if err == nil {
 			validKey = true
-		}
-		_, err = x509.ParsePKCS1PrivateKey(key)
-		if err == nil {
-			validKey = true
+			lol := x509.MarshalPKCS1PrivateKey(candidate)
+			fmt.Println(string(lol))
 		}
 		if validKey == true {
 			return string(password), err
@@ -95,14 +101,14 @@ func extractPassword(wordlist string) []string {
 	words, err := ioutil.ReadFile(wordlist)
 	fatal(err)
 	passwords := strings.Split(string(words), "\n")
-	fmt.Println(len(passwords))
+	//fmt.Println(len(passwords))
 	return passwords
 }
 
 func crack(block *pem.Block, wordlist string) {
 	jobs := make(chan Job, workers)
 	// there can be only one
-	results := make(chan Result, 0x01)
+	results := make(chan Result)
 	done := make(chan struct{}, workers)
 
 	passwords := extractPassword(wordlist)
@@ -125,5 +131,12 @@ func main() {
 	pemKey, err := ioutil.ReadFile(*keyPtr)
 	fatal(err)
 	block, _ := pem.Decode(pemKey)
+	// first of all, is there even a password?
+	if !x509.IsEncryptedPEMBlock(block) {
+		fmt.Println("No pass detected - yay")
+		os.Exit(0)
+	}
 	crack(block, *wordPtr)
+	// superfluous
+	os.Exit(0)
 }
