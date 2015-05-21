@@ -77,23 +77,22 @@ func checkKey(block *pem.Block, password []byte) (string, error) {
 	key, err := x509.DecryptPEMBlock(block, password)
 	if err == nil {
 		// we now have a candidate, is it random noise or is can be parsed?
-		validKey := false
 		_, err = x509.ParsePKCS8PrivateKey(key)
 		if err == nil {
 			validKey = true
 			fmt.Println("PKCS8 candidate")
+			return string(password), err
 		}
 		_, err = x509.ParsePKCS1PrivateKey(key)
 		if err == nil {
 			validKey = true
 			fmt.Println("PKCS1 candidate")
+			return string(password), err
 		}
 		_, err = x509.ParseECPrivateKey(key)
 		if err == nil {
 			validKey = true
 			fmt.Println("ECDSA candidate")
-		}
-		if validKey == true {
 			return string(password), err
 		}
 	}
@@ -129,8 +128,7 @@ func main() {
 	keyPtr := flag.String("keyfile", "with_pass", "the keyfile you want to crack")
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
 	flag.Parse()
-	fmt.Println(*keyPtr)
-	fmt.Println(*wordPtr)
+	fmt.Printf("Cracking %s with wordlist %s\n", *keyPtr, *wordPtr)
 	pemKey, err := ioutil.ReadFile(*keyPtr)
 	fatal(err)
 	block, _ := pem.Decode(pemKey)
