@@ -45,8 +45,8 @@ func fatal(e error) {
 func processResults(results <-chan Result) {
 	for result := range results {
 		fmt.Println("Decrypted: %s", result.decrypted)
-		//os.Exit(0)
 	}
+	os.Exit(0)
 }
 
 func awaitCompletion(done <-chan struct{}, results chan Result) {
@@ -77,7 +77,16 @@ func checkKey(block *pem.Block, password []byte) (string, error) {
 	if err == nil {
 		// we now have a candidate, is it random noise or is can be parsed?
 		validKey := false
-		_, err := x509.ParsePKCS1PrivateKey(key)
+		_, err = x509.ParsePKCS8PrivateKey(key)
+		if err == nil {
+			validKey = true
+		}
+		// first try with RSA
+		_, err = x509.ParsePKCS1PrivateKey(key)
+		if err == nil {
+			validKey = true
+		}
+		_, err = x509.ParseECPrivateKey(key)
 		if err == nil {
 			validKey = true
 		}
@@ -99,7 +108,7 @@ func extractPassword(wordlist string) []string {
 func crack(block *pem.Block, wordlist string) {
 	jobs := make(chan Job, workers)
 	// there can be only one
-	results := make(chan Result)
+	results := make(chan Result, 0x01)
 	done := make(chan struct{}, workers)
 
 	passwords := extractPassword(wordlist)
@@ -128,6 +137,4 @@ func main() {
 		os.Exit(0)
 	}
 	crack(block, *wordPtr)
-	// superfluous
-	os.Exit(0)
 }
