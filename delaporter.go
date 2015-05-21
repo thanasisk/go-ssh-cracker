@@ -1,5 +1,5 @@
 /*
-ssh-cracker - a simple ssh private key password recovery tool
+delaporter - a simple ssh private key password recovery tool
 Copyright (C) 2015 Athanasios Kostopoulos
 */
 package main
