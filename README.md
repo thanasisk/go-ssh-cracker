@@ -1,7 +1,16 @@
 # delaporter
-this is not working atm - check back in a day or two :-)
-put here so I can continue working on it when not in front of my main workstation
-bugs:
--false positives (this is a golang limitation, see the source code)
--does not exit when a password is found (FIXED)
--code is slow (max I have seen is 411% in an 8-core machine)
+
+~~ this is not working atm - check back in a day or two :-) ~~
+
+This is a rudimentary SSH private key password recovery tool. It does not claim
+to be production quality, as the initial coding was done in a few hours.
+
+BUGS:
+
+- does not support DSA SSH keys
+
+~~does not exit when a password is found (FIXED)~~
+
+~~ false positives (FIXED) ~~
+
+- code is slow (max I have seen is 5 cores in an 8-core machine)
