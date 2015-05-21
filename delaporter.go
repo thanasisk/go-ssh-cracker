@@ -79,19 +79,16 @@ func checkKey(block *pem.Block, password []byte) (string, error) {
 		// we now have a candidate, is it random noise or is can be parsed?
 		_, err = x509.ParsePKCS8PrivateKey(key)
 		if err == nil {
-			validKey = true
 			fmt.Println("PKCS8 candidate")
 			return string(password), err
 		}
 		_, err = x509.ParsePKCS1PrivateKey(key)
 		if err == nil {
-			validKey = true
 			fmt.Println("PKCS1 candidate")
 			return string(password), err
 		}
 		_, err = x509.ParseECPrivateKey(key)
 		if err == nil {
-			validKey = true
 			fmt.Println("ECDSA candidate")
 			return string(password), err
 		}
