@@ -44,9 +44,10 @@ func fatal(e error) {
 // channel housekeeping as described in "Programming in Go" pp 326-334
 func processResults(results <-chan Result) {
 	for result := range results {
-		fmt.Println("Decrypted: %s", result.decrypted)
+		fmt.Printf("Decrypted: %s\n", result.decrypted)
+		// this is a kludge
+		os.Exit(0)
 	}
-	os.Exit(0)
 }
 
 func awaitCompletion(done <-chan struct{}, results chan Result) {
@@ -80,15 +81,17 @@ func checkKey(block *pem.Block, password []byte) (string, error) {
 		_, err = x509.ParsePKCS8PrivateKey(key)
 		if err == nil {
 			validKey = true
+			fmt.Println("PKCS8 candidate")
 		}
-		// first try with RSA
 		_, err = x509.ParsePKCS1PrivateKey(key)
 		if err == nil {
 			validKey = true
+			fmt.Println("PKCS1 candidate")
 		}
 		_, err = x509.ParseECPrivateKey(key)
 		if err == nil {
 			validKey = true
+			fmt.Println("ECDSA candidate")
 		}
 		if validKey == true {
 			return string(password), err
