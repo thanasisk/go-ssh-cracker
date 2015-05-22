@@ -1,5 +1,5 @@
 # delaporter
-
+[![Build Status](https://travis-ci.org/thanasisk/delaporter.svg?branch=master)](https://travis-ci.org/thanasisk/delaporter)
 ~~this is not working atm - check back in a day or two :-)~~
 
 This is a rudimentary SSH private key password recovery tool. It does not claim
@@ -14,4 +14,4 @@ BUGS:
 
 - ~~false positives (FIXED)~~
 
-- code is slow (max I have seen is 5 cores in an 8-core machine)
+- code is slow (max I have seen is 6 cores in an 8-core machine)
