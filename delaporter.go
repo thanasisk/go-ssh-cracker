@@ -12,6 +12,7 @@ import "encoding/pem"
 import "runtime"
 import "strings"
 import "os"
+import "golang.org/x/crypto/ssh"
 
 var workers = runtime.NumCPU()
 
@@ -58,6 +59,7 @@ func awaitCompletion(done <-chan struct{}, results chan Result) {
 }
 
 func addJobs(jobs chan<- Job, block *pem.Block, passwords []string, results chan<- Result) {
+	fmt.Println(".")
 	for _, password := range passwords {
 		jobs <- Job{password, results}
 	}
@@ -77,47 +79,45 @@ func checkKey(block *pem.Block, password []byte) (string, error) {
 	key, err := x509.DecryptPEMBlock(block, password)
 	if err == nil {
 		// we now have a candidate, is it random noise or is can be parsed?
-		_, err = x509.ParsePKCS8PrivateKey(key)
+		_, err := ssh.ParseRawPrivateKey(key)
 		if err == nil {
-			fmt.Println("PKCS8 candidate")
-			return string(password), err
-		}
-		_, err = x509.ParsePKCS1PrivateKey(key)
-		if err == nil {
-			fmt.Println("PKCS1 candidate")
-			return string(password), err
-		}
-		_, err = x509.ParseECPrivateKey(key)
-		if err == nil {
-			fmt.Println("ECDSA candidate")
-			return string(password), err
+			return string(password), nil
 		}
 	}
 	return "", err
 }
 
 func extractPassword(wordlist string) []string {
+	fmt.Println("Loading wordlist")
 	words, err := ioutil.ReadFile(wordlist)
 	fatal(err)
 	passwords := strings.Split(string(words), "\n")
-	//fmt.Println(len(passwords))
+	fmt.Println("Loaded ", len(passwords), " possible passwords")
 	return passwords
 }
 
 func crack(block *pem.Block, wordlist string) {
-	jobs := make(chan Job, workers)
-	// there can be only one
-	results := make(chan Result, 0x01)
-	done := make(chan struct{}, workers)
-
 	passwords := extractPassword(wordlist)
-	// TODO: maybe this is stupid memory-wise
-	go addJobs(jobs, block, passwords, results)
-	for i := 0; i < workers; i++ {
-		go doJobs(done, block, jobs)
+	//FAIL os.Stdout.Write([]byte("\x9B\x3F\x32\x35\x6C"))
+	for _, password := range passwords {
+		candidate, err := checkKey(block, []byte(password))
+		if err == nil && candidate != "" {
+			fmt.Println("Pass found: ", candidate)
+		}
+		os.Stdout.Write([]byte("/"))
+		os.Stdout.Write([]byte("\r"))
+		os.Stdout.Write([]byte("-"))
+		os.Stdout.Write([]byte("\r"))
+		os.Stdout.Write([]byte("\\"))
+		os.Stdout.Write([]byte("\r"))
+		os.Stdout.Write([]byte("|"))
+		os.Stdout.Write([]byte("\r"))
 	}
-	go awaitCompletion(done, results)
-	processResults(results)
+}
+
+func usage() {
+	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordfile <YOUR WORDLIST>")
+	os.Exit(1)
 }
 
 func main() {
@@ -125,6 +125,15 @@ func main() {
 	keyPtr := flag.String("keyfile", "with_pass", "the keyfile you want to crack")
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
 	flag.Parse()
+	// a small sanity check
+	if _, err := os.Stat(*keyPtr); err != nil {
+		fmt.Printf("Keyfile %s not found - exiting\n", *keyPtr)
+		usage()
+	}
+	if _, err := os.Stat(*wordPtr); err != nil {
+		fmt.Printf("wordlist %s not found - exiting\n", *wordPtr)
+		usage()
+	}
 	fmt.Printf("Cracking %s with wordlist %s\n", *keyPtr, *wordPtr)
 	pemKey, err := ioutil.ReadFile(*keyPtr)
 	fatal(err)
