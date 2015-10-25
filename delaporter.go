@@ -12,6 +12,8 @@ import "encoding/pem"
 import "runtime"
 import "strings"
 import "os"
+import "os/signal"
+import "syscall"
 import "golang.org/x/crypto/ssh"
 
 var workers = runtime.NumCPU()
@@ -98,7 +100,6 @@ func extractPassword(wordlist string) []string {
 
 func crack(block *pem.Block, wordlist string) {
 	passwords := extractPassword(wordlist)
-	//FAIL os.Stdout.Write([]byte("\x9B\x3F\x32\x35\x6C"))
 	for _, password := range passwords {
 		candidate, err := checkKey(block, []byte(password))
 		if err == nil && candidate != "" {
@@ -121,6 +122,17 @@ func usage() {
 }
 
 func main() {
+	os.Stdout.Write([]byte("\033[?25l"))
+	// let us set a ^C handler ...
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGTERM)
+	go func() {
+		<-c
+		os.Stdout.Write([]byte("\r"))
+		os.Stdout.Write([]byte("\033[?25h"))
+		os.Exit(255)
+	}()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	keyPtr := flag.String("keyfile", "with_pass", "the keyfile you want to crack")
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
@@ -144,4 +156,5 @@ func main() {
 		os.Exit(0)
 	}
 	crack(block, *wordPtr)
+	os.Stdout.Write([]byte("\033[?25h"))
 }
