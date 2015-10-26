@@ -10,30 +10,14 @@ import "io/ioutil"
 import "crypto/x509"
 import "encoding/pem"
 import "runtime"
-import "strings"
+import "bufio"
 import "os"
 import "os/signal"
 import "syscall"
 import "golang.org/x/crypto/ssh"
+import "sync"
 
 var workers = runtime.NumCPU()
-
-type Job struct {
-	password string
-	results  chan<- Result
-}
-
-type Result struct {
-	decrypted string
-}
-
-func (job Job) Do(block *pem.Block) {
-	// casts []byte <-> string are cheap
-	_, err := checkKey(block, []byte(job.password))
-	if err == nil {
-		job.results <- Result{(job.password)}
-	}
-}
 
 func fatal(e error) {
 	// Reading files requires checking most calls for errors.
@@ -44,80 +28,93 @@ func fatal(e error) {
 	}
 }
 
-// channel housekeeping as described in "Programming in Go" pp 326-334
-func processResults(results <-chan Result) {
-	for result := range results {
-		fmt.Printf("Decrypted: %s\n", result.decrypted)
-		// this is a kludge
-		os.Exit(0)
-	}
+func printNDie(pass []byte) {
+	fmt.Println(string(pass))
+	os.Stdout.Write([]byte("\033[?25h"))
+	os.Exit(0)
 }
 
-func awaitCompletion(done <-chan struct{}, results chan Result) {
-	for i := 0; i < workers; i++ {
-		<-done
-	}
-	close(results)
-}
-
-func addJobs(jobs chan<- Job, block *pem.Block, passwords []string, results chan<- Result) {
-	fmt.Println(".")
-	for _, password := range passwords {
-		jobs <- Job{password, results}
-	}
-	close(jobs)
-}
-
-func doJobs(done chan<- struct{}, block *pem.Block, jobs <-chan Job) {
-	for job := range jobs {
-		job.Do(block)
-	}
-	done <- struct{}{}
-}
-
-func checkKey(block *pem.Block, password []byte) (string, error) {
+func checkKey(jobs <-chan string, wg *sync.WaitGroup, block *pem.Block) {
 	// https://github.com/golang/go/issues/10171
 	// golang's fix? expand the documentation ...
-	key, err := x509.DecryptPEMBlock(block, password)
-	if err == nil {
-		// we now have a candidate, is it random noise or is can be parsed?
-		_, err := ssh.ParseRawPrivateKey(key)
+	defer wg.Done()
+	for passwordStr := range jobs {
+		password := []byte(passwordStr)
+		key, err := x509.DecryptPEMBlock(block, password)
 		if err == nil {
-			return string(password), nil
+			// we now have a candidate, is it random noise or is can be parsed?
+			// for some reason ParseRawPrivateKey fails so its brute force time
+			// https://github.com/golang/go/issues/8581 - ed25519 are not currently supported by Golang
+			_, err := ssh.ParseDSAPrivateKey(key)
+			if err == nil {
+				printNDie(password)
+			}
+			// not DSA? maybe RSA
+			_, err = x509.ParsePKCS1PrivateKey(key)
+			if err == nil {
+				printNDie(password)
+			}
+			// ECDSA?
+			_, err = x509.ParseECPrivateKey(key)
+			if err == nil {
+				printNDie(password)
+			}
 		}
 	}
-	return "", err
 }
 
-func extractPassword(wordlist string) []string {
-	fmt.Println("Loading wordlist")
-	words, err := ioutil.ReadFile(wordlist)
-	fatal(err)
-	passwords := strings.Split(string(words), "\n")
-	fmt.Println("Loaded ", len(passwords), " possible passwords")
-	return passwords
+func fancyClock() {
+	// fancy ...
+	os.Stdout.Write([]byte("/"))
+	os.Stdout.Write([]byte("\r"))
+	os.Stdout.Write([]byte("-"))
+	os.Stdout.Write([]byte("\r"))
+	os.Stdout.Write([]byte("\\"))
+	os.Stdout.Write([]byte("\r"))
+	os.Stdout.Write([]byte("|"))
+	os.Stdout.Write([]byte("\r"))
 }
 
-func crack(block *pem.Block, wordlist string) {
-	passwords := extractPassword(wordlist)
-	for _, password := range passwords {
-		candidate, err := checkKey(block, []byte(password))
-		if err == nil && candidate != "" {
-			fmt.Println("Pass found: ", candidate)
-		}
-		os.Stdout.Write([]byte("/"))
-		os.Stdout.Write([]byte("\r"))
-		os.Stdout.Write([]byte("-"))
-		os.Stdout.Write([]byte("\r"))
-		os.Stdout.Write([]byte("\\"))
-		os.Stdout.Write([]byte("\r"))
-		os.Stdout.Write([]byte("|"))
-		os.Stdout.Write([]byte("\r"))
+func crack(block *pem.Block, wordlist string) string {
+	jobs := make(chan string)
+	//results := make(chan string, 1)
+	file, err := os.Open(wordlist)
+	if err != nil {
+		fatal(err)
 	}
+	defer file.Close()
+	wg := new(sync.WaitGroup)
+	// Go over a file line by line and queue up a ton of work
+	go func() {
+		fmt.Println("Cracking ...")
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			jobs <- scanner.Text()
+		}
+		close(jobs)
+	}()
+	// start up some workers that will block and wait?
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go checkKey(jobs, wg, block)
+	}
+	//go func() {
+	wg.Wait()
+	//}()
+
+	// Add up the results from the results channel.
+	/*counts := ""
+	for v := range results {
+		counts = v
+	}
+	return counts
+	*/
+	return "Not found ..."
 }
 
 func usage() {
-	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordfile <YOUR WORDLIST>")
+	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordlist <YOUR WORDLIST>")
+	os.Stdout.Write([]byte("\033[?25h"))
 	os.Exit(1)
 }
 
@@ -133,7 +130,7 @@ func main() {
 		os.Stdout.Write([]byte("\033[?25h"))
 		os.Exit(255)
 	}()
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(workers)
 	keyPtr := flag.String("keyfile", "with_pass", "the keyfile you want to crack")
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
 	flag.Parse()
@@ -155,6 +152,6 @@ func main() {
 		fmt.Println("No pass detected - yay")
 		os.Exit(0)
 	}
-	crack(block, *wordPtr)
+	fmt.Println(crack(block, *wordPtr))
 	os.Stdout.Write([]byte("\033[?25h"))
 }

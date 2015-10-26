@@ -7,6 +7,7 @@ GOCLEAN=$(GOCMD) clean
 all: build
 
 build:
+	$(GOCMD) get "golang.org/x/crypto/ssh"
 	$(GOBUILD) delaporter.go
 
 clean:

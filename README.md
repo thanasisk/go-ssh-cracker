@@ -8,7 +8,7 @@ PRs/issues are more than welcome.
 
 BUGS:
 
-- does not support DSA SSH keys
+- ~~does not support DSA SSH keys~~
 
 - ~~does not exit when a password is found (FIXED)~~
 
