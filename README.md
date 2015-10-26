@@ -14,4 +14,5 @@ BUGS:
 
 - ~~false positives (FIXED)~~
 
-- code is slow (max I have seen is 6 cores in an 8-core machine)
+- code is slow (max I have seen is 4 cores in an 8-core machine) is it Go or my skills?
+
