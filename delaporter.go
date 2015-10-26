@@ -63,18 +63,6 @@ func checkKey(jobs <-chan string, wg *sync.WaitGroup, block *pem.Block) {
 	}
 }
 
-func fancyClock() {
-	// fancy ...
-	os.Stdout.Write([]byte("/"))
-	os.Stdout.Write([]byte("\r"))
-	os.Stdout.Write([]byte("-"))
-	os.Stdout.Write([]byte("\r"))
-	os.Stdout.Write([]byte("\\"))
-	os.Stdout.Write([]byte("\r"))
-	os.Stdout.Write([]byte("|"))
-	os.Stdout.Write([]byte("\r"))
-}
-
 func crack(block *pem.Block, wordlist string) string {
 	jobs := make(chan string)
 	//results := make(chan string, 1)
@@ -98,17 +86,7 @@ func crack(block *pem.Block, wordlist string) string {
 		wg.Add(1)
 		go checkKey(jobs, wg, block)
 	}
-	//go func() {
 	wg.Wait()
-	//}()
-
-	// Add up the results from the results channel.
-	/*counts := ""
-	for v := range results {
-		counts = v
-	}
-	return counts
-	*/
 	return "Not found ..."
 }
 
