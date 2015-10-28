@@ -30,7 +30,6 @@ func fatal(e error) {
 
 func printNDie(pass []byte) {
 	fmt.Println(string(pass))
-	os.Stdout.Write([]byte("\033[?25h"))
 	os.Exit(0)
 }
 
@@ -65,7 +64,6 @@ func checkKey(jobs <-chan string, wg *sync.WaitGroup, block *pem.Block) {
 
 func crack(block *pem.Block, wordlist string) string {
 	jobs := make(chan string)
-	//results := make(chan string, 1)
 	file, err := os.Open(wordlist)
 	if err != nil {
 		fatal(err)
@@ -81,8 +79,7 @@ func crack(block *pem.Block, wordlist string) string {
 		}
 		close(jobs)
 	}()
-	// start up some workers that will block and wait?
-	for w := 0; w < workers; w++ {
+	for w := 0; w < 512*workers; w++ {
 		wg.Add(1)
 		go checkKey(jobs, wg, block)
 	}
@@ -92,20 +89,17 @@ func crack(block *pem.Block, wordlist string) string {
 
 func usage() {
 	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordlist <YOUR WORDLIST>")
-	os.Stdout.Write([]byte("\033[?25h"))
 	os.Exit(1)
 }
 
 func main() {
-	os.Stdout.Write([]byte("\033[?25l"))
 	// let us set a ^C handler ...
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	signal.Notify(c, syscall.SIGTERM)
 	go func() {
 		<-c
-		os.Stdout.Write([]byte("\r"))
-		os.Stdout.Write([]byte("\033[?25h"))
+		fmt.Println("^C caught - Exiting")
 		os.Exit(255)
 	}()
 	runtime.GOMAXPROCS(workers)
@@ -131,5 +125,4 @@ func main() {
 		os.Exit(0)
 	}
 	fmt.Println(crack(block, *wordPtr))
-	os.Stdout.Write([]byte("\033[?25h"))
 }
