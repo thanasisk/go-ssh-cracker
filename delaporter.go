@@ -62,7 +62,7 @@ func checkKey(jobs <-chan string, wg *sync.WaitGroup, block *pem.Block) {
 	}
 }
 
-func crack(block *pem.Block, wordlist string) string {
+func crack(block *pem.Block, wordlist string, factor int) string {
 	jobs := make(chan string)
 	file, err := os.Open(wordlist)
 	if err != nil {
@@ -79,7 +79,7 @@ func crack(block *pem.Block, wordlist string) string {
 		}
 		close(jobs)
 	}()
-	for w := 0; w < 512*workers; w++ {
+	for w := 0; w < factor*workers; w++ {
 		wg.Add(1)
 		go checkKey(jobs, wg, block)
 	}
@@ -88,7 +88,7 @@ func crack(block *pem.Block, wordlist string) string {
 }
 
 func usage() {
-	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordlist <YOUR WORDLIST>")
+	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordlist <YOUR WORDLIST> -factor <1 <-> +oo>")
 	os.Exit(1)
 }
 
@@ -105,6 +105,7 @@ func main() {
 	runtime.GOMAXPROCS(workers)
 	keyPtr := flag.String("keyfile", "with_pass", "the keyfile you want to crack")
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
+	factorPtr := flag.Int("factor", 1, "performance factor")
 	flag.Parse()
 	// a small sanity check
 	if _, err := os.Stat(*keyPtr); err != nil {
@@ -113,6 +114,10 @@ func main() {
 	}
 	if _, err := os.Stat(*wordPtr); err != nil {
 		fmt.Printf("wordlist %s not found - exiting\n", *wordPtr)
+		usage()
+	}
+	if *factorPtr < 1 {
+		fmt.Printf("performance factor %d should be more than 1 - exiting\n", *factorPtr)
 		usage()
 	}
 	fmt.Printf("Cracking %s with wordlist %s\n", *keyPtr, *wordPtr)
@@ -124,5 +129,5 @@ func main() {
 		fmt.Println("No pass detected - yay")
 		os.Exit(0)
 	}
-	fmt.Println(crack(block, *wordPtr))
+	fmt.Println(crack(block, *wordPtr, *factorPtr))
 }
