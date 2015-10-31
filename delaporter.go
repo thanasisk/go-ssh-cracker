@@ -30,7 +30,6 @@ func fatal(e error) {
 
 func printNDie(pass []byte) {
 	fmt.Println(string(pass))
-	os.Stdout.Write([]byte("\033[?25h"))
 	os.Exit(0)
 }
 
@@ -63,9 +62,8 @@ func checkKey(jobs <-chan string, wg *sync.WaitGroup, block *pem.Block) {
 	}
 }
 
-func crack(block *pem.Block, wordlist string) string {
+func crack(block *pem.Block, wordlist string, factor int) string {
 	jobs := make(chan string)
-	//results := make(chan string, 1)
 	file, err := os.Open(wordlist)
 	if err != nil {
 		fatal(err)
@@ -81,8 +79,7 @@ func crack(block *pem.Block, wordlist string) string {
 		}
 		close(jobs)
 	}()
-	// start up some workers that will block and wait?
-	for w := 0; w < workers; w++ {
+	for w := 0; w < factor*workers; w++ {
 		wg.Add(1)
 		go checkKey(jobs, wg, block)
 	}
@@ -91,26 +88,24 @@ func crack(block *pem.Block, wordlist string) string {
 }
 
 func usage() {
-	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordlist <YOUR WORDLIST>")
-	os.Stdout.Write([]byte("\033[?25h"))
+	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordlist <YOUR WORDLIST> -factor <1 <-> +oo>")
 	os.Exit(1)
 }
 
 func main() {
-	os.Stdout.Write([]byte("\033[?25l"))
 	// let us set a ^C handler ...
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	signal.Notify(c, syscall.SIGTERM)
 	go func() {
 		<-c
-		os.Stdout.Write([]byte("\r"))
-		os.Stdout.Write([]byte("\033[?25h"))
+		fmt.Println("^C caught - Exiting")
 		os.Exit(255)
 	}()
 	runtime.GOMAXPROCS(workers)
 	keyPtr := flag.String("keyfile", "with_pass", "the keyfile you want to crack")
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
+	factorPtr := flag.Int("factor", 1, "performance factor")
 	flag.Parse()
 	// a small sanity check
 	if _, err := os.Stat(*keyPtr); err != nil {
@@ -119,6 +114,10 @@ func main() {
 	}
 	if _, err := os.Stat(*wordPtr); err != nil {
 		fmt.Printf("wordlist %s not found - exiting\n", *wordPtr)
+		usage()
+	}
+	if *factorPtr < 1 {
+		fmt.Printf("performance factor %d should be more than 1 - exiting\n", *factorPtr)
 		usage()
 	}
 	fmt.Printf("Cracking %s with wordlist %s\n", *keyPtr, *wordPtr)
@@ -130,6 +129,5 @@ func main() {
 		fmt.Println("No pass detected - yay")
 		os.Exit(0)
 	}
-	fmt.Println(crack(block, *wordPtr))
-	os.Stdout.Write([]byte("\033[?25h"))
+	fmt.Println(crack(block, *wordPtr, *factorPtr))
 }
