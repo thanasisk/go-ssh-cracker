@@ -1,6 +1,6 @@
 /*
 delaporter - a simple ssh private key password recovery tool
-Copyright (C) 2015 Athanasios Kostopoulos
+Copyright (C) 2015-2016 Athanasios Kostopoulos
 */
 package main
 
@@ -16,8 +16,33 @@ import "os/signal"
 import "syscall"
 import "golang.org/x/crypto/ssh"
 import "sync"
+import "strings"
 
 var workers = runtime.NumCPU()
+
+// just a shorthand
+const (
+	RSA     = iota
+	DSA     = iota
+	ECDSA   = iota
+	ED25519 = iota
+)
+
+var keyTypes = map[string]int{
+	// looks silly, eh?
+	"rsa":   RSA,
+	"dsa":   DSA,
+	"ecdsa": ECDSA,
+	// I love forward thinking
+	"ed25519": ED25519,
+}
+
+const (
+	NORMAL       = iota
+	EUNSUPPORTED = iota
+	EBADARGS     = iota
+	EINT         = iota
+)
 
 func fatal(e error) {
 	// Reading files requires checking most calls for errors.
@@ -28,12 +53,7 @@ func fatal(e error) {
 	}
 }
 
-func printNDie(pass []byte) {
-	fmt.Println(string(pass))
-	os.Exit(0)
-}
-
-func checkKey(jobs <-chan string, wg *sync.WaitGroup, block *pem.Block) {
+func checkKey(jobs <-chan string, results chan<- string, wg *sync.WaitGroup, block *pem.Block, keyType int) {
 	// https://github.com/golang/go/issues/10171
 	// golang's fix? expand the documentation ...
 	defer wg.Done()
@@ -42,28 +62,37 @@ func checkKey(jobs <-chan string, wg *sync.WaitGroup, block *pem.Block) {
 		key, err := x509.DecryptPEMBlock(block, password)
 		if err == nil {
 			// we now have a candidate, is it random noise or is can be parsed?
-			// for some reason ParseRawPrivateKey fails so its brute force time
-			// https://github.com/golang/go/issues/8581 - ed25519 are not currently supported by Golang
-			_, err := ssh.ParseDSAPrivateKey(key)
-			if err == nil {
-				printNDie(password)
-			}
-			// not DSA? maybe RSA
-			_, err = x509.ParsePKCS1PrivateKey(key)
-			if err == nil {
-				printNDie(password)
-			}
-			// ECDSA?
-			_, err = x509.ParseECPrivateKey(key)
-			if err == nil {
-				printNDie(password)
+			// for some reason ParseRawPrivateKey fails so we try based on keyType
+			// https://github.com/golang/go/issues/8581
+			// ed25519 are not currently supported by Golang as part of stdlib
+			switch keyType {
+			case DSA:
+				_, err := ssh.ParseDSAPrivateKey(key)
+				if err == nil {
+					//goto found is a possible fix for code duplication
+					results <- string(password)
+					close(results)
+				}
+			case RSA:
+				_, err = x509.ParsePKCS1PrivateKey(key)
+				if err == nil {
+					results <- string(password)
+					close(results)
+				}
+			case ECDSA:
+				_, err = x509.ParseECPrivateKey(key)
+				if err == nil {
+					results <- string(password)
+					close(results)
+				}
 			}
 		}
 	}
 }
 
-func crack(block *pem.Block, wordlist string, factor int) string {
+func crack(block *pem.Block, wordlist string, factor int, keyType int) string {
 	jobs := make(chan string)
+	results := make(chan string)
 	file, err := os.Open(wordlist)
 	if err != nil {
 		fatal(err)
@@ -81,7 +110,12 @@ func crack(block *pem.Block, wordlist string, factor int) string {
 	}()
 	for w := 0; w < factor*workers; w++ {
 		wg.Add(1)
-		go checkKey(jobs, wg, block)
+		go checkKey(jobs, results, wg, block, keyType)
+	}
+	select {
+	case res := <-results:
+		return res
+	default:
 	}
 	wg.Wait()
 	return "Not found ..."
@@ -100,12 +134,13 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("^C caught - Exiting")
-		os.Exit(255)
+		os.Exit(EINT)
 	}()
 	runtime.GOMAXPROCS(workers)
 	keyPtr := flag.String("keyfile", "with_pass", "the keyfile you want to crack")
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
-	factorPtr := flag.Int("factor", 1, "performance factor")
+	typePtr := flag.String("type", "rsa", "type of private key you want to crack")
+	factorPtr := flag.Int("factor", 512, "performance factor")
 	flag.Parse()
 	// a small sanity check
 	if _, err := os.Stat(*keyPtr); err != nil {
@@ -120,6 +155,21 @@ func main() {
 		fmt.Printf("performance factor %d should be more than 1 - exiting\n", *factorPtr)
 		usage()
 	}
+	keyType := strings.ToLower(*typePtr)
+	switch keyType {
+	case "dsa":
+		fallthrough
+	case "rsa":
+		fallthrough
+	case "ecdsa":
+		fmt.Printf("type %s supported - continuing\n", *typePtr)
+	case "ed25519":
+		fmt.Printf("Sorry %s is not supported yet\n", *typePtr)
+		os.Exit(EUNSUPPORTED)
+	default:
+		fmt.Printf("Looks like you have had a crypto breakthrough\n")
+		os.Exit(EBADARGS)
+	}
 	fmt.Printf("Cracking %s with wordlist %s\n", *keyPtr, *wordPtr)
 	pemKey, err := ioutil.ReadFile(*keyPtr)
 	fatal(err)
@@ -127,7 +177,7 @@ func main() {
 	// first of all, is there even a password?
 	if !x509.IsEncryptedPEMBlock(block) {
 		fmt.Println("No pass detected - yay")
-		os.Exit(0)
+		os.Exit(NORMAL)
 	}
-	fmt.Println(crack(block, *wordPtr, *factorPtr))
+	fmt.Println(crack(block, *wordPtr, *factorPtr, keyTypes[keyType]))
 }
