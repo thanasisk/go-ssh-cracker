@@ -10,6 +10,7 @@ import "io/ioutil"
 import "crypto/x509"
 import "encoding/pem"
 import "runtime"
+import "runtime/pprof"
 import "bufio"
 import "os"
 import "os/signal"
@@ -122,7 +123,10 @@ func crack(block *pem.Block, wordlist string, factor int, keyType int) string {
 }
 
 func usage() {
-	fmt.Println("delaporter -keyfile <SSH PRIVATE KEY> -wordlist <YOUR WORDLIST> -factor <1 <-> +oo>")
+	fmt.Printf("delaporter -keyfile <SSH PRIVATE KEY>\n")
+	fmt.Printf("-type rsa|dsa|ecdsa ed25519 coming soon\n")
+	fmt.Printf("-wordlist <YOUR WORDLIST> -factor <1 <-> +oo>\n")
+	fmt.Printf("optionally, you can enable -cpuprofile for profiling\n")
 	os.Exit(1)
 }
 
@@ -141,6 +145,7 @@ func main() {
 	wordPtr := flag.String("wordlist", "pass.txt", "the wordlist you want to use")
 	typePtr := flag.String("type", "rsa", "type of private key you want to crack")
 	factorPtr := flag.Int("factor", 512, "performance factor")
+	cpuprofile := flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
 	// a small sanity check
 	if _, err := os.Stat(*keyPtr); err != nil {
@@ -169,6 +174,15 @@ func main() {
 	default:
 		fmt.Printf("Looks like you have had a crypto breakthrough\n")
 		os.Exit(EBADARGS)
+	}
+	// is profiling enabled?
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 	fmt.Printf("Cracking %s with wordlist %s\n", *keyPtr, *wordPtr)
 	pemKey, err := ioutil.ReadFile(*keyPtr)
