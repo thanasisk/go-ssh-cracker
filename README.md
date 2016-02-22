@@ -7,9 +7,13 @@ forgot the password? Have no worries, *delaporter* is here.
 
 ## Usage
 -keyfile the keyfile you want to recover the password for
+
 -wordlist the wordlist you want to use - please keep in mind that it is used *as-is*
+
 -type the type of private key you want to crack - currently only rsa/dsa/ecdsa are supported
+
 -factor performance factor, please see section below
+
 -cpuprofile writes cpu profile to file - this is useful during development but kills performance
 
 ## Performance factor
