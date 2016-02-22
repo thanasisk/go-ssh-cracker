@@ -6,15 +6,15 @@ This is an SSH private key password recovery tool. Have an SSH private key and
 forgot the password? Have no worries, *delaporter* is here.
 
 ## Usage
--keyfile the keyfile you want to recover the password for
+*-keyfile* the keyfile you want to recover the password for
 
--wordlist the wordlist you want to use - please keep in mind that it is used *as-is*
+*-wordlist* the wordlist you want to use - please keep in mind that it is used *as-is*
 
--type the type of private key you want to crack - currently only rsa/dsa/ecdsa are supported
+*-type* the type of private key you want to crack - currently only rsa/dsa/ecdsa are supported
 
--factor performance factor, please see section below
+*-factor* performance factor, please see section below
 
--cpuprofile writes cpu profile to file - this is useful during development but kills performance
+*-cpuprofile* writes cpu profile to file - this is useful during development but kills performance
 
 ## Performance factor
 This version introduces factor an integer variable (default value is 512).
