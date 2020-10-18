@@ -1,4 +1,4 @@
 sudo: false
 language: go
 go:
-    - 1.X
+    - "1.X"
