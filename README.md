@@ -1,6 +1,5 @@
 # delaporter
-[![Build Status](https://travis-ci.org/thanasisk/go-ssh-cracker.svg?branch=master)](https://travis-ci.org/thanasisk/go-ssh-cracker)
-
+[![Build Status](https://api.travis-ci.org/thanasisk/go-ssh-cracker.svg?branch=master)](https://travis-ci.org/thanasisk/go-ssh-cracker)
 ## Intro
 This is an SSH private key password recovery tool. Have an SSH private key and
 forgot the password? Have no worries, *the tool formerly known as delaporter* is here.
