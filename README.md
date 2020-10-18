@@ -3,7 +3,7 @@
 
 ## Intro
 This is an SSH private key password recovery tool. Have an SSH private key and
-forgot the password? Have no worries, *delaporter* is here.
+forgot the password? Have no worries, *the tool formerly known as delaporter* is here.
 
 ## Usage
 *-keyfile* the keyfile you want to recover the password for
@@ -26,4 +26,4 @@ Feel free to experiment with this variable, as I do not have access to a lot of 
 (hm, perhaps a blog post is a good idea?)
 
 ## Feedback
-Feedback welcome at lixtetrax@grhack.net. I also more than welcome issues/PRs
+Feedback welcome at athanasios@akostopoulos.com. I also more than welcome issues/PRs
