@@ -123,7 +123,7 @@ func crack(block *pem.Block, wordlist string, factor int, keyType int) string {
 }
 
 func usage() {
-	fmt.Printf("delaporter -keyfile <SSH PRIVATE KEY>\n")
+	fmt.Printf("go-ssh-cracker -keyfile <SSH PRIVATE KEY>\n")
 	fmt.Printf("-type rsa|dsa|ecdsa ed25519 coming soon\n")
 	fmt.Printf("-wordlist <YOUR WORDLIST> -factor <1 <-> +oo>\n")
 	fmt.Printf("optionally, you can enable -cpuprofile for profiling\n")

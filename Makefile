@@ -8,7 +8,7 @@ all: build
 
 build:
 	$(GOCMD) get "golang.org/x/crypto/ssh"
-	$(GOBUILD) delaporter.go
+	$(GOBUILD) go-ssh-cracker.go
 
 clean:
 	$(GOCLEAN)
