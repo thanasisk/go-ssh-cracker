@@ -9,6 +9,10 @@ import "encoding/pem"
 import "crypto/rand"
 import "crypto/ed25519"
 
+//import "github.com/mattetti/filebuffer"
+import "os"
+import "io/ioutil"
+
 // steals code from https://gist.github.com/devinodaniel/8f9b8a4f31573f428f29ec0e884e6673
 func generateRSAPrivateKey(bitSize int) (*rsa.PrivateKey, error) {
 	// Private Key generation
@@ -53,8 +57,7 @@ func generateED25519PrivateKey(bitSize int) (ed25519.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func TestCheckKey(t *testing.T) {
-	// checkKey(jobs <-chan string, results chan<- string, wg *sync.WaitGroup, block *pem.Block, keyType int)
+func TestCrack(t *testing.T) {
 	testKey, err := generateRSAPrivateKey(2048)
 	if err != nil {
 		t.Fatal("could not create RSA key")
@@ -79,7 +82,21 @@ func TestCheckKey(t *testing.T) {
 			want: true,
 		},
 	}
-	//for _, tt := range tests {
-	//
-	//}
+	for _, tt := range tests {
+		tmpFile, err := ioutil.TempFile("./", "wlist")
+		if err != nil {
+			t.Fatal("failed to create temporary file for testing")
+		}
+		tmpFile.Write([]byte(tt.pass))
+		defer os.Remove(tmpFile.Name())
+		foo, _ := pem.Decode(testPEM)
+		res := crack(foo, tmpFile.Name(), 512, RSA)
+		t.Log("res: " + res)
+		if tt.want != true && tt.pass == res {
+			t.Errorf("pass guessed for invalid pass: " + tt.name)
+		}
+		if (tt.want == true && tt.pass == res) || (tt.want == false && tt.pass != res) {
+			t.Log("proper behavior for: " + tt.name)
+		}
+	}
 }

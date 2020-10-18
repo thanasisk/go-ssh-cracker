@@ -12,7 +12,7 @@ build:
 
 test:
 	$(GOCMD) get "golang.org/x/crypto/ssh"
-	$(GOCMD) test
+	$(GOCMD) test -v
 
 clean:
 	$(GOCLEAN)
