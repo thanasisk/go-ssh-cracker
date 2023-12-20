@@ -25,4 +25,4 @@ Feel free to experiment with this variable, as I do not have access to a lot of 
 (hm, perhaps a blog post is a good idea?)
 
 ## Feedback
-Feedback welcome at athanasios@akostopoulos.com. I also more than welcome issues/PRs
+Feedback welcome! My profile page has my contact details - a quick online search will reveal a lot more. I also more than welcome issues/PRs

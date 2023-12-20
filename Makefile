@@ -1,4 +1,5 @@
 GOCMD=go
+SEC=gosec
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 
@@ -13,6 +14,10 @@ build:
 test:
 	$(GOCMD) get "golang.org/x/crypto/ssh"
 	$(GOCMD) test -v
+
+sec:
+	$(GOCMD) install github.com/securego/gosec/v2/cmd/gosec@latest
+	$(SEC) ./
 
 clean:
 	$(GOCLEAN)

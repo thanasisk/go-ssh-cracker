@@ -4,20 +4,23 @@ Copyright (C) 2015-2016 Athanasios Kostopoulos
 */
 package main
 
-import "fmt"
-import "flag"
-import "io/ioutil"
-import "crypto/x509"
-import "encoding/pem"
-import "runtime"
-import "runtime/pprof"
-import "bufio"
-import "os"
-import "os/signal"
-import "syscall"
-import "golang.org/x/crypto/ssh"
-import "sync"
-import "strings"
+import (
+	"bufio"
+	"crypto/x509"
+	"encoding/pem"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/signal"
+	"runtime"
+	"runtime/pprof"
+	"strings"
+	"sync"
+	"syscall"
+
+	"golang.org/x/crypto/ssh"
+)
 
 var workers = runtime.NumCPU()
 
@@ -94,7 +97,8 @@ func checkKey(jobs <-chan string, results chan<- string, wg *sync.WaitGroup, blo
 func crack(block *pem.Block, wordlist string, factor int, keyType int) string {
 	jobs := make(chan string)
 	results := make(chan string)
-	file, err := os.Open(wordlist)
+	// whatcha gonna do?
+	file, err := os.Open(wordlist) // #nosec G304
 	if err != nil {
 		fatal(err)
 	}
@@ -181,7 +185,10 @@ func main() {
 		if err != nil {
 			fatal(err)
 		}
-		pprof.StartCPUProfile(f)
+		// Start CPU profiling
+		if err := pprof.StartCPUProfile(f); err != nil {
+			panic(err)
+		}
 		defer pprof.StopCPUProfile()
 	}
 	fmt.Printf("Cracking %s with wordlist %s\n", *keyPtr, *wordPtr)
