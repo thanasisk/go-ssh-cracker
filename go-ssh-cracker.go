@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -98,7 +99,7 @@ func crack(block *pem.Block, wordlist string, factor int, keyType int) string {
 	jobs := make(chan string)
 	results := make(chan string)
 	// whatcha gonna do?
-	file, err := os.Open(wordlist) // #nosec G304
+	file, err := os.Open(filepath.Clean(wordlist))
 	if err != nil {
 		fatal(err)
 	}
